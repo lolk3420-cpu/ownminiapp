@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="description" content="Портфолио Telegram-бот разработчика. Кастомные боты под ключ.">
+  <title>Vibe Coder — Telegram Bot Developer</title>
+  <script src="https://telegram.org/js/telegram-web-app.js?62"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ===== CSS Reset & Root ===== */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      /* Fallback colors — overridden by Telegram theme vars when available */
+      --bg-primary: var(--tg-theme-bg-color, #0a0e17);
+      --bg-secondary: var(--tg-theme-secondary-bg-color, #111827);
+      --text-primary: var(--tg-theme-text-color, #e2e8f0);
+      --text-hint: var(--tg-theme-hint-color, #64748b);
+      --text-link: var(--tg-theme-link-color, #38bdf8);
+      --btn-bg: var(--tg-theme-button-color, #00ff88);
+      --btn-text: var(--tg-theme-button-text-color, #0a0e17);
+
+      /* Custom palette */
+      --neon-green: #00ff88;
+      --neon-cyan: #00e5ff;
+      --neon-purple: #a855f7;
+      --glow-green: 0 0 20px rgba(0, 255, 136, 0.3), 0 0 60px rgba(0, 255, 136, 0.1);
+      --glow-cyan: 0 0 15px rgba(0, 229, 255, 0.25);
+      --surface: rgba(17, 24, 39, 0.7);
+      --border: rgba(0, 255, 136, 0.12);
+    }
+
+    html, body {
+      height: 100%;
+      overflow-x: hidden;
+    }
+
+    body {
+      font-family: 'Fira Code', 'Courier New', 'Consolas', monospace;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      position: relative;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ===== Matrix Canvas Background ===== */
+    #matrix-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.35;
+    }
+
+    /* Subtle scanline overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.03) 2px,
+        rgba(0, 0, 0, 0.03) 4px
+      );
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* ===== Main Content ===== */
+    .app-container {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      max-width: 420px;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 40px 24px 48px;
+      text-align: center;
+      animation: fadeInUp 0.8s ease-out;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(24px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ===== Avatar ===== */
+    .avatar-wrapper {
+      position: relative;
+      width: 120px;
+      height: 120px;
+      margin-bottom: 24px;
+      flex-shrink: 0;
+    }
+
+    .avatar-ring {
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      background: conic-gradient(
+        var(--neon-green),
+        var(--neon-cyan),
+        var(--neon-purple),
+        var(--neon-green)
+      );
+      animation: ringRotate 6s linear infinite;
+      opacity: 0.8;
+    }
+
+    @keyframes ringRotate {
+      to { transform: rotate(360deg); }
+    }
+
+    .avatar-ring::after {
+      content: '';
+      position: absolute;
+      inset: 3px;
+      border-radius: 50%;
+      background: var(--bg-primary);
+    }
+
+    .avatar {
+      position: relative;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      overflow: hidden;
+      z-index: 1;
+      background: var(--surface);
+      border: 2px solid transparent;
+    }
+
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* Hacker placeholder when no photo */
+    .avatar-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .avatar-placeholder::before {
+      content: '>';
+      position: absolute;
+      font-size: 48px;
+      font-weight: 700;
+      color: var(--neon-green);
+      text-shadow: var(--glow-green);
+      animation: cursorBlink 1s step-end infinite;
+    }
+
+    @keyframes cursorBlink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    .avatar-placeholder .skull {
+      font-size: 52px;
+      filter: grayscale(0.2);
+      line-height: 1;
+    }
+
+    /* ===== Username Tag ===== */
+    .username-tag {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--neon-green);
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+      text-shadow: var(--glow-green);
+      opacity: 0;
+      animation: typeIn 0.5s ease-out 0.3s forwards;
+    }
+
+    @keyframes typeIn {
+      from {
+        opacity: 0;
+        letter-spacing: 8px;
+      }
+      to {
+        opacity: 1;
+        letter-spacing: 0.5px;
+      }
+    }
+
+    .username-tag .prefix {
+      color: var(--text-hint);
+      font-weight: 400;
+    }
+
+    /* ===== Name ===== */
+    .dev-name {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+      line-height: 1.3;
+    }
+
+    /* ===== Role Badge ===== */
+    .role-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--neon-cyan);
+      background: rgba(0, 229, 255, 0.08);
+      border: 1px solid rgba(0, 229, 255, 0.2);
+      border-radius: 100px;
+      padding: 5px 14px;
+      margin-bottom: 28px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    .role-badge .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--neon-cyan);
+      box-shadow: 0 0 8px var(--neon-cyan);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    /* ===== Terminal Description Block ===== */
+    .terminal-block {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 32px;
+      text-align: left;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .terminal-block::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--neon-green), transparent);
+      opacity: 0.5;
+    }
+
+    .terminal-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .terminal-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .terminal-dot.red { background: #ff5f56; }
+    .terminal-dot.yellow { background: #ffbd2e; }
+    .terminal-dot.green { background: #27c93f; }
+
+    .terminal-title {
+      font-size: 11px;
+      color: var(--text-hint);
+      margin-left: 8px;
+      letter-spacing: 0.5px;
+    }
+
+    .terminal-line {
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--text-primary);
+      opacity: 0.9;
+    }
+
+    .terminal-line .prompt {
+      color: var(--neon-green);
+      user-select: none;
+    }
+
+    .terminal-line .keyword {
+      color: var(--neon-purple);
+    }
+
+    .terminal-line .string {
+      color: var(--neon-cyan);
+    }
+
+    .terminal-line .comment {
+      color: var(--text-hint);
+      font-style: italic;
+    }
+
+    /* ===== Skills Tags ===== */
+    .skills-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 36px;
+      opacity: 0;
+      animation: fadeInUp 0.5s ease-out 0.6s forwards;
+    }
+
+    .skill-tag {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--text-hint);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      padding: 4px 10px;
+      transition: all 0.3s ease;
+    }
+
+    .skill-tag:hover {
+      color: var(--neon-green);
+      border-color: rgba(0, 255, 136, 0.25);
+      background: rgba(0, 255, 136, 0.06);
+    }
+
+    /* ===== CTA Button ===== */
+    .cta-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      max-width: 320px;
+      padding: 16px 28px;
+      font-family: 'Fira Code', monospace;
+      font-size: 14px;
+      font-weight: 600;
+      color: #0a0e17;
+      background: var(--neon-green);
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      text-decoration: none;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 20px rgba(0, 255, 136, 0.25),
+                  0 4px 16px rgba(0, 255, 136, 0.15);
+      opacity: 0;
+      animation: fadeInUp 0.6s ease-out 0.8s forwards;
+    }
+
+    .cta-button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.25),
+        transparent
+      );
+      transition: left 0.5s ease;
+    }
+
+    .cta-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 30px rgba(0, 255, 136, 0.4),
+                  0 8px 24px rgba(0, 255, 136, 0.2);
+    }
+
+    .cta-button:hover::before {
+      left: 100%;
+    }
+
+    .cta-button:active {
+      transform: translateY(0) scale(0.98);
+      box-shadow: 0 0 15px rgba(0, 255, 136, 0.3),
+                  0 2px 8px rgba(0, 255, 136, 0.15);
+    }
+
+    .cta-button .arrow {
+      transition: transform 0.3s ease;
+    }
+
+    .cta-button:hover .arrow {
+      transform: translateX(4px);
+    }
+
+    /* ===== Footer ===== */
+    .footer {
+      margin-top: 32px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--neon-green);
+      opacity: 0.7;
+      letter-spacing: 2px;
+      text-shadow: 0 0 12px rgba(0, 255, 136, 0.3);
+    }
+
+    /* ===== Responsive ===== */
+    @media (max-height: 640px) {
+      .app-container {
+        padding: 24px 20px 32px;
+        justify-content: flex-start;
+        padding-top: 10vh;
+      }
+
+      .avatar-wrapper {
+        width: 96px;
+        height: 96px;
+        margin-bottom: 18px;
+      }
+
+      .avatar {
+        width: 96px;
+        height: 96px;
+      }
+
+      .terminal-block {
+        margin-bottom: 24px;
+        padding: 16px;
+      }
+
+      .skills-row {
+        margin-bottom: 28px;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .app-container {
+        padding: 32px 16px 36px;
+      }
+
+      .dev-name {
+        font-size: 20px;
+      }
+
+      .terminal-line {
+        font-size: 12px;
+      }
+
+      .cta-button {
+        font-size: 13px;
+        padding: 14px 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Matrix Rain Canvas -->
+  <canvas id="matrix-canvas" aria-hidden="true"></canvas>
+
+  <!-- App Content -->
+  <main class="app-container">
+
+    <!-- Avatar -->
+    <div class="avatar-wrapper">
+      <div class="avatar-ring"></div>
+      <div class="avatar" id="user-avatar">
+        <!-- Hacker placeholder — shown on image load error -->
+        <div class="avatar-placeholder" id="avatar-placeholder" style="display: none;">
+          <span class="skull">💀</span>
+        </div>
+        <img id="avatar-img"
+             src="https://www.image2url.com/r2/default/images/1783528912141-510f946d-b03c-43b2-aae9-585c5b283b80.png"
+             alt="Аватар разработчика"
+             loading="eager"
+             onerror="this.style.display='none'; document.getElementById('avatar-placeholder').style.display='flex';">
+      </div>
+    </div>
+
+    <!-- Username -->
+    <p class="username-tag" id="username-tag">
+      <span class="prefix">$ </span>@shizukesa26
+    </p>
+
+    <!-- Name -->
+    <h1 class="dev-name" id="dev-name">Telegram Bots Developer</h1>
+
+    <!-- Role Badge -->
+    <div class="role-badge">
+      <span class="dot"></span>
+      Telegram Bot Developer
+    </div>
+
+    <!-- Terminal Description -->
+    <div class="terminal-block">
+      <div class="terminal-header">
+        <span class="terminal-dot red"></span>
+        <span class="terminal-dot yellow"></span>
+        <span class="terminal-dot green"></span>
+        <span class="terminal-title">about.sh</span>
+      </div>
+      <div class="terminal-line">
+        <span class="prompt">~$</span> <span class="keyword">echo</span> <span class="string">"Создаю кастомных Telegram-ботов под ключ."</span>
+      </div>
+      <div class="terminal-line">
+        <span class="prompt">~$</span> <span class="keyword">echo</span> <span class="string">"Быстро. Надёжно. С душой."</span>
+      </div>
+      <div class="terminal-line">
+        <span class="comment"># literally anything is possible.</span>
+      </div>
+    </div>
+
+    <!-- Skills -->
+    <div class="skills-row">
+      <span class="skill-tag">Python</span>
+      <span class="skill-tag">aiogram</span>
+      <span class="skill-tag">Pyrogram</span>
+      <span class="skill-tag">Bot API</span>
+      <span class="skill-tag">Mini Apps</span>
+      <span class="skill-tag">Payments</span>
+    </div>
+
+    <!-- CTA Button -->
+    <a class="cta-button"
+       id="cta-button"
+       href="https://t.me/shizukesa26"
+       target="_blank"
+       rel="noopener noreferrer">
+      <span>Начать проект со мной</span>
+      <span class="arrow">→</span>
+    </a>
+
+    <!-- Footer -->
+    <div class="footer">
+      shizukesa.
+    </div>
+
+  </main>
+
+  <script>
+    /* ==============================================================
+       Telegram Web App Initialization
+    ============================================================== */
+    const tg = window.Telegram?.WebApp;
+
+    function initTelegramApp() {
+      if (!tg) return;
+
+      // Expand to full height
+      tg.expand();
+
+      // Disable vertical swipes to prevent accidental close
+      if (tg.disableVerticalSwipes) {
+        tg.disableVerticalSwipes();
+      }
+
+      // Apply header/background colors
+      try {
+        tg.setHeaderColor('#0a0e17');
+        tg.setBackgroundColor('#0a0e17');
+      } catch (e) { /* older clients may not support this */ }
+    }
+
+    /* ==============================================================
+       CTA Button — open link via Telegram API when inside TG
+    ============================================================== */
+    document.getElementById('cta-button').addEventListener('click', function(e) {
+      const TARGET_USERNAME = 'shizukesa26';
+      const link = 'https://t.me/' + TARGET_USERNAME;
+
+      if (tg && tg.openTelegramLink) {
+        e.preventDefault();
+        tg.openTelegramLink(link);
+      } else {
+        this.href = link;
+      }
+    });
+
+    /* ==============================================================
+       Matrix Rain — Optimized Canvas Animation
+    ============================================================== */
+    (function initMatrix() {
+      const canvas = document.getElementById('matrix-canvas');
+      const ctx = canvas.getContext('2d');
+
+      let w, h, columns, drops;
+      const FONT_SIZE = 14;
+      const CHARS = 'アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789{}[]()<>=;:const let var def class import async await function return if else for while true false';
+      const charArr = CHARS.split('');
+
+      // Throttle: target ~20 FPS to save CPU
+      const FRAME_INTERVAL = 50; // ms
+      let lastFrame = 0;
+      let animId = null;
+      let isVisible = true;
+
+      function resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        w = canvas.width = window.innerWidth * dpr;
+        h = canvas.height = window.innerHeight * dpr;
+        canvas.style.width = window.innerWidth + 'px';
+        canvas.style.height = window.innerHeight + 'px';
+        ctx.scale(dpr, dpr);
+        columns = Math.floor(window.innerWidth / FONT_SIZE);
+        drops = new Array(columns).fill(1);
+        // Stagger initial positions for a natural look
+        for (let i = 0; i < columns; i++) {
+          drops[i] = Math.random() * -100;
+        }
+      }
+
+      function draw(timestamp) {
+        animId = requestAnimationFrame(draw);
+
+        if (!isVisible) return;
+        if (timestamp - lastFrame < FRAME_INTERVAL) return;
+        lastFrame = timestamp;
+
+        // Semi-transparent overlay for trail effect
+        ctx.fillStyle = 'rgba(10, 14, 23, 0.12)';
+        ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+
+        ctx.font = FONT_SIZE + 'px "Fira Code", monospace';
+
+        for (let i = 0; i < columns; i++) {
+          if (drops[i] < 0) {
+            drops[i]++;
+            continue;
+          }
+
+          const char = charArr[Math.floor(Math.random() * charArr.length)];
+          const x = i * FONT_SIZE;
+          const y = drops[i] * FONT_SIZE;
+
+          // Head character — brighter
+          const isHead = Math.random() > 0.95;
+          if (isHead) {
+            ctx.fillStyle = 'rgba(0, 255, 136, 0.9)';
+            ctx.shadowColor = '#00ff88';
+            ctx.shadowBlur = 8;
+          } else {
+            const alpha = 0.15 + Math.random() * 0.2;
+            ctx.fillStyle = `rgba(0, 255, 136, ${alpha})`;
+            ctx.shadowBlur = 0;
+          }
+
+          ctx.fillText(char, x, y);
+          ctx.shadowBlur = 0;
+
+          // Reset drop to top after reaching bottom (with randomness)
+          if (y > window.innerHeight && Math.random() > 0.975) {
+            drops[i] = 0;
+          }
+          drops[i]++;
+        }
+      }
+
+      // Pause when tab is not visible
+      document.addEventListener('visibilitychange', function() {
+        isVisible = !document.hidden;
+      });
+
+      // Also respond to Telegram active/deactivated events
+      if (tg) {
+        tg.onEvent('activated', function() { isVisible = true; });
+        tg.onEvent('deactivated', function() { isVisible = false; });
+      }
+
+      // Debounced resize
+      let resizeTimer;
+      window.addEventListener('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(resize, 200);
+      });
+
+      resize();
+      animId = requestAnimationFrame(draw);
+    })();
+
+    /* ==============================================================
+       Initialize & Signal Ready
+    ============================================================== */
+    initTelegramApp();
+
+    if (tg) {
+      tg.ready();
+    }
+  </script>
+</body>
+</html>
